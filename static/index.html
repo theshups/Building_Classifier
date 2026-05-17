@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Property Classifier</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0f1a;--surface:#111827;--card:#1a2236;--border:#1e3050;
+  --blue:#3b82f6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--purple:#a855f7;
+  --text:#e2e8f0;--sub:#8892a4;--font:system-ui,-apple-system,sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
+canvas#bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:0.35}
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+
+/* Header */
+header{
+  display:flex;align-items:center;gap:16px;padding:14px 32px;
+  background:rgba(11,15,26,.92);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
+}
+.brand{font-size:16px;font-weight:700;letter-spacing:.5px;color:var(--text)}
+.brand span{color:var(--blue)}
+.header-sep{flex:1}
+.pill{
+  font-size:11px;padding:3px 10px;border-radius:20px;letter-spacing:.5px;
+  border:1px solid;
+}
+.pill-online{color:var(--green);border-color:var(--green);background:rgba(34,197,94,.08)}
+.pill-offline{color:var(--red);border-color:var(--red);background:rgba(239,68,68,.08)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);
+  display:inline-block;margin-right:5px;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Main grid */
+main{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:24px 32px;flex:1;
+  max-width:1200px;margin:0 auto;width:100%}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
+.card-label{font-size:10px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;
+  margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-label::before{content:'';width:14px;height:1px;background:var(--sub)}
+
+/* Upload zone */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:10px;
+  padding:40px 20px;text-align:center;cursor:pointer;
+  transition:all .25s;position:relative;overflow:hidden;
+  min-height:240px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+}
+.upload-zone:hover,.upload-zone.drag{
+  border-color:var(--blue);background:rgba(59,130,246,.04);
+}
+.upload-icon{font-size:40px;opacity:.5}
+.upload-text{font-size:13px;color:var(--sub)}
+.upload-btn{
+  background:transparent;border:1px solid var(--blue);color:var(--blue);
+  padding:8px 22px;border-radius:8px;font-size:12px;cursor:pointer;
+  letter-spacing:.5px;transition:all .2s;
+}
+.upload-btn:hover{background:rgba(59,130,246,.12)}
+.scan-line{
+  position:absolute;left:0;width:100%;height:2px;
+  background:linear-gradient(90deg,transparent,var(--blue),transparent);
+  animation:scan 2s linear infinite;opacity:0;box-shadow:0 0 10px var(--blue);
+}
+.upload-zone.scanning .scan-line{opacity:1}
+@keyframes scan{0%{top:0}100%{top:100%}}
+
+#preview-wrap{display:none}
+#preview-img{max-width:100%;max-height:200px;border-radius:8px;
+  border:1px solid var(--border);object-fit:cover}
+.preview-meta{font-size:11px;color:var(--sub);margin-top:6px}
+
+/* Classify button */
+#classify-btn{
+  width:100%;padding:13px;margin-top:14px;border-radius:9px;
+  background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(168,85,247,.1));
+  border:1px solid var(--blue);color:var(--blue);
+  font-size:13px;letter-spacing:.5px;cursor:pointer;transition:all .25s;
+  display:none;font-family:var(--font);font-weight:500;
+}
+#classify-btn:hover{background:rgba(59,130,246,.18);box-shadow:0 0 20px rgba(59,130,246,.2)}
+#classify-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Error */
+.error{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.3);
+  border-radius:8px;padding:12px;color:#f87171;font-size:12px;display:none;margin-top:10px}
+
+/* Results */
+.result-empty{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:240px;gap:10px;opacity:.4;
+}
+.result-empty .icon{font-size:36px}
+.result-empty p{font-size:12px;color:var(--sub);letter-spacing:1px}
+#results-content{display:none}
+
+/* Top prediction */
+.top-pred{
+  background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);
+  border-radius:10px;padding:18px;margin-bottom:18px;
+}
+.top-pred-class{font-size:20px;font-weight:700;color:var(--blue);
+  text-transform:uppercase;letter-spacing:1px}
+.top-pred-meta{font-size:12px;color:var(--sub);margin-top:4px}
+.top-pred-meta span{color:var(--text);font-weight:600}
+
+/* Class bars */
+.bars-label{font-size:10px;letter-spacing:1.5px;color:var(--sub);
+  text-transform:uppercase;margin-bottom:12px}
+.bar-row{margin-bottom:14px}
+.bar-info{display:flex;justify-content:space-between;
+  font-size:12px;margin-bottom:5px}
+.bar-name{color:var(--text)}
+.bar-pct{font-weight:600}
+.bar-track{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;
+  transition:width .8s cubic-bezier(.4,0,.2,1);width:0}
+.bar-fill.c0{background:linear-gradient(90deg,#3b82f6,#60a5fa);box-shadow:0 0 6px rgba(59,130,246,.4)}
+.bar-fill.c1{background:linear-gradient(90deg,#22c55e,#4ade80);box-shadow:0 0 6px rgba(34,197,94,.4)}
+.bar-fill.c2{background:linear-gradient(90deg,#f59e0b,#fbbf24);box-shadow:0 0 6px rgba(245,158,11,.4)}
+.bar-fill.c3{background:linear-gradient(90deg,#a855f7,#c084fc);box-shadow:0 0 6px rgba(168,85,247,.4)}
+
+/* Class tags */
+.class-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.class-tag{
+  font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:.5px;
+  border:1px solid var(--border);color:var(--sub);
+}
+.class-tag.active{border-color:var(--blue);color:var(--blue)}
+
+/* Stats bar */
+.stats-bar{
+  display:flex;border-top:1px solid var(--border);
+  background:rgba(11,15,26,.95);
+}
+.stat{flex:1;padding:14px 20px;border-right:1px solid var(--border);text-align:center}
+.stat:last-child{border-right:none}
+.stat-val{font-size:18px;font-weight:700;color:var(--blue)}
+.stat-key{font-size:9px;letter-spacing:1.5px;color:var(--sub);
+  text-transform:uppercase;margin-top:2px}
+
+/* History panel */
+.history-list{display:flex;flex-direction:column;gap:8px;max-height:180px;overflow-y:auto}
+.history-item{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:7px;padding:8px 12px;font-size:11px;
+}
+.h-class{color:var(--blue);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.h-conf{color:var(--sub)}
+.h-conf span{color:var(--green);font-weight:600}
+.h-time{color:var(--sub)}
+
+/* Spinner */
+.spinner{display:inline-block;width:13px;height:13px;
+  border:2px solid rgba(59,130,246,.3);border-top-color:var(--blue);
+  border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:7px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="app">
+
+<!-- HEADER -->
+<header>
+  <div class="brand">Property <span>Classifier</span></div>
+  <div class="header-sep"></div>
+  <span class="pill pill-online" id="status-pill">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">Connecting</span>
+  </span>
+  <span class="pill" style="color:var(--sub);border-color:var(--border)" id="model-pill">ResNet101V2</span>
+</header>
+
+<!-- MAIN -->
+<main>
+
+  <!-- LEFT: Upload -->
+  <div>
+    <div class="card">
+      <div class="card-label">Image Input</div>
+      <div class="upload-zone" id="dropzone">
+        <div class="scan-line"></div>
+        <div id="upload-default">
+          <div class="upload-icon">&#9654;</div>
+          <div class="upload-text">Drop an image here or click to browse</div>
+          <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+            Select Image
+          </button>
+          <div style="font-size:11px;color:var(--sub)">JPEG or PNG</div>
+        </div>
+        <div id="preview-wrap">
+          <img id="preview-img" alt="Preview">
+          <div class="preview-meta" id="preview-meta"></div>
+        </div>
+      </div>
+      <input type="file" id="file-input" accept="image/jpeg,image/png" style="display:none">
+      <button id="classify-btn" onclick="classify()">&#9654; Classify Property</button>
+      <div class="error" id="error-box"></div>
+      <div class="class-tags" id="class-tags"></div>
+    </div>
+
+    <!-- History -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-label">Recent Predictions</div>
+      <div class="history-list" id="history-list">
+        <div style="font-size:11px;color:var(--sub);text-align:center;padding:16px">
+          No predictions yet
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div class="card">
+    <div class="card-label">Classification Result</div>
+
+    <div class="result-empty" id="result-empty">
+      <div class="icon">&#9636;</div>
+      <p>Awaiting image input</p>
+      <p style="font-size:10px">Upload a property image to begin</p>
+    </div>
+
+    <div id="results-content">
+      <div class="top-pred">
+        <div class="top-pred-class" id="top-class">---</div>
+        <div class="top-pred-meta">
+          Confidence: <span id="top-conf">0%</span>
+          &nbsp;&middot;&nbsp;
+          Latency: <span id="top-lat">0ms</span>
+        </div>
+      </div>
+
+      <div class="bars-label">Probability Distribution</div>
+      <div id="bars-container"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-val" id="stat-preds">0</div>
+    <div class="stat-key">Predictions</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="stat-classes">4</div>
+    <div class="stat-key">Classes</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">ResNet101V2</div>
+    <div class="stat-key">Backbone</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">24,640</div>
+    <div class="stat-key">Trainable Params</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="stat-lat">--ms</div>
+    <div class="stat-key">Last Latency</div>
+  </div>
+</div>
+
+</div><!-- .app -->
+
+<script>
+// ── Canvas background ────────────────────────────────────────────────
+const cv = document.getElementById('bg');
+const cx = cv.getContext('2d');
+let W, H, dots = [];
+function resize(){
+  W = cv.width = window.innerWidth;
+  H = cv.height = window.innerHeight;
+  dots = [];
+  for(let x=0;x<W;x+=64) for(let y=0;y<H;y+=64)
+    dots.push({x,y,a:Math.random()*.3+.05,s:Math.random()*2});
+}
+function draw(){
+  cx.clearRect(0,0,W,H);
+  cx.strokeStyle='#1e3050';cx.lineWidth=.4;cx.globalAlpha=.12;
+  for(let x=0;x<W;x+=64){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke()}
+  for(let y=0;y<H;y+=64){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke()}
+  const t=Date.now()/1000;
+  dots.forEach((d,i)=>{
+    const p=Math.sin(t*.7+i*.4)*.5+.5;
+    cx.globalAlpha=p*d.a;
+    cx.fillStyle='#3b82f6';
+    cx.beginPath();cx.arc(d.x,d.y,1.2,0,Math.PI*2);cx.fill();
+  });
+  cx.globalAlpha=1;
+  requestAnimationFrame(draw);
+}
+window.addEventListener('resize',resize);
+resize();draw();
+
+// ── State ────────────────────────────────────────────────────────────
+let selectedFile=null, predCount=0, history=[];
+const CLASS_COLORS=['c0','c1','c2','c3'];
+const CLASS_DISPLAY={
+  exterior_facade:'Exterior Facade',
+  office_interior:'Office Interior',
+  warehouse:'Warehouse',
+  hvac_pipeline:'HVAC / Pipeline',
+};
+
+// ── Health check ─────────────────────────────────────────────────────
+async function checkHealth(){
+  try{
+    const r=await fetch('/health');
+    const d=await r.json();
+    const ok=d.model_loaded;
+    document.getElementById('status-dot').style.background=ok?'#22c55e':'#f59e0b';
+    document.getElementById('status-text').textContent=ok?'Online':'Model Loading';
+    document.getElementById('status-pill').className='pill '+(ok?'pill-online':'');
+    if(!ok) document.getElementById('status-pill').style.cssText='color:#f59e0b;border-color:#f59e0b;background:rgba(245,158,11,.08);font-size:11px;padding:3px 10px;border-radius:20px;letter-spacing:.5px;border:1px solid';
+  }catch{
+    document.getElementById('status-dot').style.background='#ef4444';
+    document.getElementById('status-text').textContent='Offline';
+    document.getElementById('status-pill').className='pill pill-offline';
+  }
+}
+
+async function loadClasses(){
+  try{
+    const r=await fetch('/classes');
+    const d=await r.json();
+    const con=document.getElementById('class-tags');
+    con.innerHTML='';
+    (d.classes||[]).forEach(c=>{
+      const t=document.createElement('div');
+      t.className='class-tag';
+      t.textContent=CLASS_DISPLAY[c]||c;
+      con.appendChild(t);
+    });
+    document.getElementById('stat-classes').textContent=d.num_classes||4;
+  }catch{}
+}
+
+// ── Drag & drop ───────────────────────────────────────────────────────
+const dropzone=document.getElementById('dropzone');
+const fileInput=document.getElementById('file-input');
+dropzone.addEventListener('dragover',e=>{e.preventDefault();dropzone.classList.add('drag')});
+dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop',e=>{
+  e.preventDefault();dropzone.classList.remove('drag');
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change',()=>{if(fileInput.files[0]) handleFile(fileInput.files[0])});
+dropzone.addEventListener('click',e=>{if(e.target.tagName!=='BUTTON') fileInput.click()});
+
+function handleFile(file){
+  if(!file.type.startsWith('image/')){showError('Please upload a JPEG or PNG image.');return}
+  selectedFile=file;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    document.getElementById('upload-default').style.display='none';
+    document.getElementById('preview-wrap').style.display='block';
+    document.getElementById('preview-img').src=e.target.result;
+    document.getElementById('preview-meta').textContent=
+      file.name+' · '+(file.size/1024).toFixed(0)+' KB';
+    document.getElementById('classify-btn').style.display='block';
+    hideError();
+    dropzone.classList.add('scanning');
+    setTimeout(()=>dropzone.classList.remove('scanning'),2000);
+    document.querySelectorAll('.class-tag').forEach(t=>t.classList.remove('active'));
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Classify ──────────────────────────────────────────────────────────
+async function classify(){
+  if(!selectedFile) return;
+  const btn=document.getElementById('classify-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>Analysing...';
+  hideError();
+  dropzone.classList.add('scanning');
+  const fd=new FormData();
+  fd.append('file',selectedFile);
+  try{
+    const r=await fetch('/predict',{method:'POST',body:fd});
+    if(!r.ok){const e=await r.json();throw new Error(e.detail||'Server error')}
+    const d=await r.json();
+    showResults(d);
+    addHistory(d);
+    predCount++;
+    document.getElementById('stat-preds').textContent=predCount;
+    document.getElementById('stat-lat').textContent=d.latency_ms+'ms';
+    const disp=CLASS_DISPLAY[d.top_class]||d.top_class;
+    document.querySelectorAll('.class-tag').forEach(t=>
+      t.classList.toggle('active',t.textContent.trim()===disp));
+  }catch(e){
+    showError('Prediction failed: '+e.message);
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='&#9654; Classify Property';
+    dropzone.classList.remove('scanning');
+  }
+}
+
+function showResults(d){
+  document.getElementById('result-empty').style.display='none';
+  document.getElementById('results-content').style.display='block';
+  const disp=CLASS_DISPLAY[d.top_class]||d.top_class.toUpperCase().replace(/_/g,' ');
+  document.getElementById('top-class').textContent=disp;
+  document.getElementById('top-conf').textContent=(d.confidence*100).toFixed(1)+'%';
+  document.getElementById('top-lat').textContent=d.latency_ms+'ms';
+  const bars=document.getElementById('bars-container');
+  bars.innerHTML='';
+  (d.top_k||[]).forEach((item,idx)=>{
+    const pct=(item.probability*100).toFixed(1);
+    const disp2=CLASS_DISPLAY[item.class]||item.class;
+    const row=document.createElement('div');
+    row.className='bar-row';
+    row.innerHTML=`
+      <div class="bar-info">
+        <span class="bar-name">${disp2}</span>
+        <span class="bar-pct" style="color:${idx===0?'var(--blue)':'var(--sub)'}">${pct}%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill ${CLASS_COLORS[idx%4]}" style="width:0" data-pct="${pct}"></div>
+      </div>`;
+    bars.appendChild(row);
+  });
+  requestAnimationFrame(()=>{
+    document.querySelectorAll('.bar-fill').forEach(b=>b.style.width=b.dataset.pct+'%');
+  });
+}
+
+function addHistory(d){
+  history.unshift(d);
+  if(history.length>10) history.pop();
+  const list=document.getElementById('history-list');
+  list.innerHTML=history.map(h=>`
+    <div class="history-item">
+      <span class="h-class">${CLASS_DISPLAY[h.top_class]||h.top_class}</span>
+      <span class="h-conf">Conf: <span>${(h.confidence*100).toFixed(1)}%</span></span>
+      <span class="h-time">${h.latency_ms}ms</span>
+    </div>`).join('');
+}
+
+function showError(msg){
+  const b=document.getElementById('error-box');
+  b.textContent=msg;b.style.display='block';
+}
+function hideError(){document.getElementById('error-box').style.display='none'}
+
+// ── Init ─────────────────────────────────────────────────────────────
+checkHealth();loadClasses();
+setInterval(checkHealth,15000);
+</script>
+</body>
+</html>
