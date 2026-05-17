@@ -1,0 +1,53 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    name: Lint & Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install lint tools
+        run: pip install pyflakes
+
+      - name: Check Python syntax (src/)
+        run: python -m pyflakes src/
+
+      - name: Check Python syntax (root files)
+        run: |
+          python -m pyflakes logger.py
+          python -m pyflakes exception.py
+          python -m pyflakes main.py
+
+      - name: Verify imports resolve
+        run: |
+          python -c "import sys; sys.path.insert(0,'.')"
+          python -c "from logger import get_logger; print('logger OK')"
+          python -c "from exception import AppException; print('exception OK')"
+
+      - name: Check app.py syntax
+        run: python -m pyflakes hf_space/app.py
+
+      - name: Verify Dockerfile exists
+        run: |
+          test -f Dockerfile && echo "Dockerfile OK"
+          test -f hf_space/Dockerfile && echo "HF Dockerfile OK"
+
+      - name: Check requirements.txt
+        run: |
+          test -f requirements.txt && echo "requirements.txt OK"
+          python -m pip install pip-check-reqs 2>/dev/null || true

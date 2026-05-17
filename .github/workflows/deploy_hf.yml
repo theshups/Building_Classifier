@@ -1,0 +1,86 @@
+name: Deploy to HuggingFace Spaces
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "hf_space/**"
+      - "models/tokenizer.json"
+      - "models/class_names.json"
+
+  workflow_dispatch:   # allow manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    name: Push to HuggingFace Spaces
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          lfs: true   # pull Git LFS files (model weights)
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install huggingface_hub
+        run: pip install "huggingface_hub==0.23.0"
+
+      - name: Deploy app files to HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE:  balkotjokes/property-classifier
+        run: |
+          python - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
+
+          api   = HfApi(token=os.environ["HF_TOKEN"])
+          repo  = os.environ["HF_SPACE"]
+          base  = "hf_space"
+
+          files = ["app.py", "Dockerfile", "README.md"]
+          for f in files:
+              path = os.path.join(base, f)
+              if os.path.exists(path):
+                  api.upload_file(
+                      path_or_fileobj=path,
+                      path_in_repo=f,
+                      repo_id=repo,
+                      repo_type="space",
+                  )
+                  print(f"Uploaded: {f}")
+          EOF
+
+      - name: Deploy tokenizer to HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE:  balkotjokes/property-classifier
+        run: |
+          python - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
+
+          api  = HfApi(token=os.environ["HF_TOKEN"])
+          repo = os.environ["HF_SPACE"]
+
+          for local, remote in [
+              ("models/tokenizer.json",    "models/tokenizer.json"),
+              ("models/class_names.json",  "models/class_names.json"),
+          ]:
+              if os.path.exists(local):
+                  api.upload_file(
+                      path_or_fileobj=local,
+                      path_in_repo=remote,
+                      repo_id=repo,
+                      repo_type="space",
+                  )
+                  print(f"Uploaded: {local}")
+          EOF
+
+      - name: Deployment complete
+        run: |
+          echo "Space URL: https://huggingface.co/spaces/balkotjokes/property-classifier"
