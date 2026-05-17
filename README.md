@@ -2,13 +2,6 @@
 
 > AI-powered building environment analysis system using ResNet101V2 transfer learning — classifies real-world property images into 4 categories with 24,640 trainable parameters.
 
-![CI Pipeline](https://github.com/theshups/Building_Classifier/actions/workflows/ci.yml/badge.svg)
-![Docker](https://github.com/theshups/Building_Classifier/actions/workflows/docker.yml/badge.svg)
-![HuggingFace Deploy](https://github.com/theshups/Building_Classifier/actions/workflows/deploy_hf.yml/badge.svg)
-![Python](https://img.shields.io/badge/Python-3.11-blue)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15-orange)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green)
-
 ---
 
 ## Live Demo
