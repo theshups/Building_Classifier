@@ -143,7 +143,7 @@ class ModelTrainer:
             # Phase A: head only
             log.info("-" * 55)
             log.info(f"Phase A: Head training | {EPOCHS_HEAD} epochs max")
-            log.info(f"  Trainable params: 558,980")
+            log.info("  Trainable params: 558,980")
             log.info("-" * 55)
             hist_a = self._train("HEAD", INITIAL_LR, EPOCHS_HEAD,
                                  train_ds, val_ds, cw)
@@ -388,11 +388,6 @@ class ModelTrainer:
     #  MLflow - local file tracking, no server or password needed         #
     # ------------------------------------------------------------------ #
     def _start_mlflow(self, params: dict):
-        try:
-            import pkg_resources
-        except ImportError:
-            log.warning("MLflow disabled: run  python -m pip install setuptools")
-            return
 
         try:
             import mlflow
@@ -406,7 +401,7 @@ class ModelTrainer:
             )
             self._mlflow_run_id = run.info.run_id
             mlflow.log_params(params)
-            log.info(f"MLflow tracking locally -> mlruns/")
+            log.info("MLflow tracking locally -> mlruns/")
             log.info(f"  Run ID: {self._mlflow_run_id}")
             log.info("  View: python -m mlflow ui --port 5000")
 
@@ -480,7 +475,7 @@ class ModelTrainer:
     def _log_params(self):
         t = sum(tf.size(w).numpy() for w in self.model.trainable_weights)
         f = sum(tf.size(w).numpy() for w in self.model.non_trainable_weights)
-        log.info(f"Parameters:")
+        log.info("Parameters:")
         log.info(f"  Trainable    : {t:>12,}")
         log.info(f"  Non-trainable: {f:>12,}")
         log.info(f"  Total        : {t+f:>12,}")
