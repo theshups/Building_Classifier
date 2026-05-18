@@ -14,7 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from logger import get_logger
-from exception import AppException
 
 log = get_logger(__name__)
 
