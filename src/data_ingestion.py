@@ -280,7 +280,7 @@ class DataIngestion:
                 log.warning("  No HVAC classes found in Open Images.")
                 return []
 
-            log.info(f"  Fetching validation labels ...")
+            log.info("  Fetching validation labels ...")
             req = urllib.request.Request(OI_LABELS_URL, headers={
                 "User-Agent": "PropertyClassifier/1.0"})
             with urllib.request.urlopen(req, timeout=60, context=SSL_CTX) as r:
@@ -430,7 +430,7 @@ class DataIngestion:
             if not imgs:
                 continue
             random.shuffle(imgs)
-            n, n1, n2 = len(imgs), int(len(imgs)*0.7), int(len(imgs)*0.15)
+            n1, n2 = int(len(imgs)*0.7), int(len(imgs)*0.15)
             for split, files in {
                 "train": imgs[:n1],
                 "val":   imgs[n1:n1+n2],
